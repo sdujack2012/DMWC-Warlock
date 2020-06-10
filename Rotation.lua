@@ -86,10 +86,10 @@ local function Defensive()
         ItemUsage = DMW.Time
         return true
     end
-     if Setting("Sacrifice") and Player.HP < Setting ("Sacrifice HP") and Pet and not Pet.Dead  and (GetPetActionInfo(4) == GetSpellInfo(3716)) and Spell.Sacrifice:Cast(Player) then
+    if Setting("Sacrifice") and Pet and not Pet.Dead and (Player.HP < Setting("Sacrifice HP") or Pet.HP < 10) and (GetPetActionInfo(4) == GetSpellInfo(3716)) and Spell.Sacrifice:Cast(Player) then
         return true
     end
-    if not Player.Casting and not Player.Moving and Setting("Drain Life") and Player.HP < Setting("Drain Life HP") and Target.CreatureType ~= "Mechanical" and Spell.DrainLife:Cast(Target) then
+    if not Player.Casting and not Player.Moving and Setting("Drain Life") and Player.HP < Setting("Drain Life HP") and Target.HP > 50 and Target.CreatureType ~= "Mechanical" and Spell.DrainLife:Cast(Target) then
         return true
     end
     if Setting("Luffa") and Item.Luffa:Equipped() and (DMW.Time - ItemUsage) > 0.2 and Player:Dispel(Item.Luffa) and Item.Luffa:Use(Player) then
@@ -219,6 +219,16 @@ local function Dot()
 end
 
 local function PvE()
+    if Setting("Auto Pet Attack") and Pet and not Pet.Dead then
+        if not UnitIsUnit(Target.Pointer, "pettarget") and DMW.Time > (PetAttackTime + 1) then
+            PetAttackTime = DMW.Time
+            PetAttack()
+        end
+        if Setting("Pet Tanking") and Target:GetDistance(Pet) > 5 and not UnitIsUnit(UnitTarget(DMW.Player.Target.Pointer), 'player') then
+            return true
+        end
+    end
+    
     if Player.Casting and Player.Casting == Spell.Fear.SpellName and NewTarget then
         TargetUnit(NewTarget.Pointer)
         DMW.Player.Target = NewTarget
@@ -277,9 +287,9 @@ local function PvE()
                 end
             end
         end
-        if Setting("Auto Pet Attack") and Pet and not Pet.Dead and not UnitIsUnit(Target.Pointer, "pettarget") and DMW.Time > (PetAttackTime + 1) then
-            PetAttackTime = DMW.Time
-            PetAttack()
+
+        if UnitIsUnit(UnitTarget(Target.Pointer), 'player') and not Player.Moving and Setting("Use Fear") and Player.HP <= Setting("Fear HP") and Spell.Fear:IsReady() and Debuff.Fear:Count() == 0 and Spell.Fear:Cast(Target) then
+            return true
         end
         if (not DMW.Player.Equipment[18] or (Target.Distance <= 1 and Setting("Auto Attack In Melee"))) and not IsCurrentSpell(Spell.Attack.SpellID) then
             StartAttack()
@@ -308,11 +318,11 @@ local function PvE()
         if Setting("Searing Pain") and Target.Facing and not Player.Moving and (Setting("Shadow Bolt Mode") ~= 2 or Spell.ShadowBolt:CD() > 2 or Target.TTD < Spell.ShadowBolt:CastTime()) and Spell.SearingPain:Cast(Target) then
             return true
         end
-        if Setting("Drain Life Filler") and not Player.Moving and Player.HP <= Setting("Drain Life Filler HP") and Target.CreatureType ~= "Mechanical" and (Target.Player or Target.TTD > 3) and Spell.DrainLife:Cast(Target) then
+        if Setting("Drain Life Filler") and not Player.Moving and Player.HP <= Setting("Drain Life Filler HP") and Target.HP > 50 and Target.CreatureType ~= "Mechanical" and (Target.Player or Target.TTD > 3) and Spell.DrainLife:Cast(Target) then
             return true
         end
-        if DMW.Player.Equipment[18] and Target.Facing and Wand() then
-            return true
+        if DMW.Player.Equipment[18] and Target.Facing then
+            return Wand()
         end
     end
 end
@@ -342,6 +352,10 @@ local function OoC()
             end
         end
         if not Player.Combat then
+            if not Player.Moving and Setting("Health Funnel") and Pet and not Pet.Dead and Pet.HP < Setting("Health Funnel HP") and Spell.HealthFunnel:Cast(Pet) then
+                return true
+            end
+
             if Setting("Auto Buff") and DemonBuff() then
                 return true
             end
@@ -367,7 +381,7 @@ end
 
 function Warlock.Rotation()
     Locals()
-    OoC()
+    OoC()  
     if Target and Target.ValidEnemy and Target.Distance < 40 then
         PvE()
     end
