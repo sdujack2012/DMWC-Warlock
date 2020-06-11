@@ -51,12 +51,19 @@ function Warlock.Settings()
     UI.AddRange("Shadowburn HP", "Health percent to use Shadowburn", 0, 15, 1, 3)
     UI.AddToggle("Drain Life Filler", "Use Drain Life as filler over wanding, use this for drain tanking", false)
     UI.AddRange("Drain Life Filler HP", "Player HP to start using drain life over wanding", 0, 100, 1, 80)
-    UI.AddToggle("Use Fear", "Use Fear when Play HP is low", false)
-    UI.AddRange("Fear HP", "Player HP to start fear", 0, 100, 1, 80)
+    UI.AddToggle("Drain Mana Filler", "Use Drain Mana, use this for drain tanking", false)
+    UI.AddRange("Drain Mana Filler Mana", "Player Mana to start using drain man", 0, 100, 1, 80)
+    
+    
 
     UI.AddTab("Defensive")
     UI.AddToggle("Healthstone", nil, true)
     UI.AddToggle("Pet Tanking", nil, true)
+    
+    UI.AddToggle("Use DeathCoil", nil, true)
+    UI.AddRange("Use DeathCoil HP", "Player HP to use DeathCoil", 0, 100, 1, 80)
+    UI.AddToggle("Use Fear", "Use Fear when Play HP is low", false)
+    UI.AddRange("Fear HP", "Player HP to start fear", 0, 100, 1, 80)
     UI.AddRange("Healthstone HP", nil, 0, 100, 1, 35)
     UI.AddToggle("Drain Life", nil, true)
     UI.AddRange("Drain Life HP", nil, 0, 100, 1, 25)
@@ -66,6 +73,7 @@ function Warlock.Settings()
     UI.AddRange("Sacrifice HP", "Player HP to cast Sacrifice", 0, 100, 1, 20)
     UI.AddToggle("Luffa", "Auto use luffa trinket", true)
     UI.AddToggle("Shadow Ward", "Auto cast shadow ward when targeting priest or warlock players", true)
+    UI.AddToggle("Use Fel Domination", nil, true)
 
     UI.AddTab("Utility")
     UI.AddToggle("Fear Bonus Mobs", "Auto fear non target enemies when solo", false)
@@ -74,7 +82,7 @@ function Warlock.Settings()
     UI.AddToggle("Stop DS At Max Shards", "Stop using Drain Soul when max shards reached", false)
     UI.AddToggle("Auto Delete Shards", "Activate automatic deletion of shards from bags, set max below", false)
     UI.AddRange("Max Shards", "Control max number of shards in bag", 0, 30, 1, 4)
-
+    UI.AddRange("Drain Soul HP", nil, 0, 100, 1, 25)
     --
     DMW.Helpers.Rotation.CastingCheck = false
 end

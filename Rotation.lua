@@ -44,8 +44,8 @@ local function Locals()
     Target = Player.Target or false
     HUD = DMW.Settings.profile.HUD
     CDs = Player:CDs()
-    Enemy20Y, Enemy20YC = Player:GetEnemies(20)
-    Enemy30Y, Enemy30YC = Player:GetEnemies(30)
+    Enemy20Y, Enemy20YC = Player:GetEngagedEnemies(20)
+    Enemy30Y, Enemy30YC = Player:GetEngagedEnemies(30)
     Curse = GetCurse()
 end
 
@@ -74,7 +74,7 @@ local function Wand()
     (not Setting("Corruption") or not Spell.Corruption:Known() or Debuff.Corruption:Exist(Target) or Target.TTD < 7 or Target.CreatureType == "Totem") and
     (not Setting("Siphon Life") or not Spell.SiphonLife:Known() or Debuff.SiphonLife:Exist(Target) or Target.TTD < 10 or Target.CreatureType == "Totem") and
     (Setting("Shadow Bolt Mode") == 1 or not Spell.ShadowBolt:Known() or Player.PowerPct < Setting("Shadow Bolt Mana") or Target.TTD < Spell.ShadowBolt:CastTime()) and
-    (not Setting("Drain Life Filler") or not Spell.DrainLife:Known() or Player.HP > Setting("Drain Life Filler HP") or Target.CreatureType == "Mechanical" or (not Target.Player and Target.TTD < 3) or Target.Distance > Spell.DrainLife.MaxRange)))
+    (not Setting("Drain Life Filler") or not Spell.DrainLife:Known() or Player.HP > Setting("Drain Life Filler HP") or UnitIsUnit(UnitTarget(Target.Pointer), 'player') or Target.CreatureType == "Mechanical" or (not Target.Player and Target.TTD < 3) or Target.Distance > Spell.DrainLife.MaxRange)))
     and Spell.Shoot:Cast(Target) then
         WandTime = DMW.Time
         return true
@@ -84,12 +84,11 @@ end
 local function Defensive()
     if Setting("Healthstone") and Player.HP < Setting("Healthstone HP") and (DMW.Time - ItemUsage) > 0.2 and (Item.MajorHealthstone:Use(Player) or Item.GreaterHealthstone:Use(Player) or Item.Healthstone:Use(Player) or Item.LesserHealthstone:Use(Player) or Item.MinorHealthstone:Use(Player)) then
         ItemUsage = DMW.Time
-        return true
     end
-    if Setting("Sacrifice") and Pet and not Pet.Dead and (Player.HP < Setting("Sacrifice HP") or Pet.HP < 10) and (GetPetActionInfo(4) == GetSpellInfo(3716)) and Spell.Sacrifice:Cast(Player) then
-        return true
+    if Setting("Sacrifice") and Pet and not Pet.Dead and not Buff.Sacrifice:Exist(Player) and (Player.HP < Setting("Sacrifice HP") or Pet.HP < 15) and (GetPetActionInfo(4) == GetSpellInfo(3716)) then
+        Spell.Sacrifice:Cast(Player)
     end
-    if not Player.Casting and not Player.Moving and Setting("Drain Life") and Player.HP < Setting("Drain Life HP") and Target.HP > 50 and Target.CreatureType ~= "Mechanical" and Spell.DrainLife:Cast(Target) then
+    if not Player.Casting and not Player.Moving and not UnitIsUnit(UnitTarget(Target.Pointer), 'player') and Setting("Drain Life") and Player.HP < Setting("Drain Life HP") and Target.HP > 50 and Target.CreatureType ~= "Mechanical" and Spell.DrainLife:Cast(Target) then
         return true
     end
     if Setting("Luffa") and Item.Luffa:Equipped() and (DMW.Time - ItemUsage) > 0.2 and Player:Dispel(Item.Luffa) and Item.Luffa:Use(Player) then
@@ -162,6 +161,9 @@ local function CreateSoulstone()
 end
 
 local function MultiDot()
+    if Enemy30YC == 1 then
+        return false
+    end
     if Setting("Cycle Siphon Life") and Setting("Siphon Life") and Debuff.SiphonLife:Count() < Setting("Multidot Limit") then
         for _, Unit in ipairs(Enemy30Y) do
             if not Debuff.SiphonLife:Exist(Unit) and Unit.TTD > 10 and Unit.CreatureType ~= "Totem" and Spell.SiphonLife:Cast(Unit) then
@@ -197,17 +199,18 @@ local function Dot()
         if (not Player.Moving or Talent.ImprovedCorruption.Rank == 5) and (not Spell.Corruption:LastCast() or (DMW.Player.LastCast[1].SuccessTime and (DMW.Time - DMW.Player.LastCast[1].SuccessTime) > 0.7) or not UnitIsUnit(Spell.Corruption.LastBotTarget, Target.Pointer)) and (Target.Facing or (Talent.ImprovedCorruption.Rank == 5 and DMW.Settings.profile.Enemy.AutoFace)) and not Debuff.Corruption:Exist(Target) and Spell.Corruption:Cast(Target) then
             return true
         end
-        return true
     end
     if Setting("Siphon Life") and not Debuff.SiphonLife:Exist(Target) and Target.TTD > 10 and Target.CreatureType ~= "Totem" and Spell.SiphonLife:Cast(Target) then
         return true
     end
     if Curse and Target.CreatureType ~= "Totem" and Target.TTD > 10 and not Debuff[Curse]:Exist(Target) then
-        if CDs and Target.TTD > 15 and Target.Distance <= Spell[Curse].MaxRange and Spell.AmplifyCurse:Cast(Player) then
-            return true
-        end
-        if Spell[Curse]:Cast(Target) then
-            return true
+        if CDs and Target.TTD > 15 and Target.Distance <= Spell[Curse].MaxRange then
+            if Setting("Amplify Curse") and Spell.AmplifyCurse:IsReady() then
+                Spell.AmplifyCurse:Cast(Player) 
+            end
+            if Spell[Curse]:Cast(Target) then
+                return true
+            end
         end
     end
     if Setting("Corruption") and (not Player.Moving or Talent.ImprovedCorruption.Rank == 5) and (not Spell.Corruption:LastCast() or (DMW.Player.LastCast[1].SuccessTime and (DMW.Time - DMW.Player.LastCast[1].SuccessTime) > 0.7) or not UnitIsUnit(Spell.Corruption.LastBotTarget, Target.Pointer)) and Target.CreatureType ~= "Totem" and (Target.Facing or (Talent.ImprovedCorruption.Rank == 5 and DMW.Settings.profile.Enemy.AutoFace)) and not Debuff.Corruption:Exist(Target) and Target.TTD > 7 and Spell.Corruption:Cast(Target) then
@@ -224,7 +227,7 @@ local function PvE()
             PetAttackTime = DMW.Time
             PetAttack()
         end
-        if Setting("Pet Tanking") and Target:GetDistance(Pet) > 5 and not UnitIsUnit(UnitTarget(Target.Pointer), 'player') then
+        if Setting("Pet Tanking") and Target:GetDistance(Pet) > 5 and not UnitIsUnit(UnitTarget(Target.Pointer), 'player') and not Player.Combat then
             return true
         end
     end
@@ -249,16 +252,7 @@ local function PvE()
             return true
         end
     end
-    if not Player.Moving and not Target.Player and Setting("Drain Soul Snipe") and (not Setting("Stop DS At Max Shards") or ShardCount < Setting("Max Shards")) and (not Player.Casting or (Player.Casting ~= Spell.DrainSoul.SpellName and Player.Casting ~= Spell.Hellfire.SpellName and Player.Casting ~= Spell.RainOfFire.SpellName)) and Spell.DrainSoul:CD() < 0.2 and Debuff.Shadowburn:Count() == 0 then
-        for _, Unit in ipairs(Enemy30Y) do
-            if Unit.Facing and math.abs(Player.Level - Unit.Level) <= 10 and not Unit.Player and (Unit.TTD < 3 or Unit.HP < 8) and not Unit:IsBoss() and not UnitIsTapDenied(Unit.Pointer) then
-                if Spell.DrainSoul:Cast(Unit) then
-                    WandTime = DMW.Time
-                    return true
-                end
-            end
-        end
-    end
+    
     if Setting("Shadowburn") and ShardCount >= Setting("Max Shards") and (not Player.Casting or (Player.Casting ~= Spell.DrainSoul.SpellName and Player.Casting ~= Spell.Hellfire.SpellName and Player.Casting ~= Spell.RainOfFire.SpellName)) and Spell.Shadowburn:IsReady() then
         for _, Unit in ipairs(Enemy30Y) do
             if Unit.Facing and (Unit.TTD < Setting("Shadowburn TTD") or Unit.HP < Setting("Shadowburn HP")) and not Unit:IsBoss() and not UnitIsTapDenied(Unit.Pointer) then
@@ -272,14 +266,30 @@ local function PvE()
         end
     end
     if not Player.Casting then
+        if Setting("Use Fel Domination") and not (Spell.SummonImp:LastCast() or Spell.SummonVoidwalker:LastCast() or Spell.SummonSuccubus:LastCast() or Spell.SummonFelhunter:LastCast()) and Player.Combat and (not Pet or (Pet and Pet.Dead)) and Spell.FelDomination:IsReady() and Spell.FelDomination:Cast(Player) then
+            return true
+        end
+
+        if (not Pet or (Pet and Pet.Dead)) and Buff.FelDomination:Exist(Player) then
+            if Setting("Pet") == 2 and not Spell.SummonImp:LastCast() and Spell.SummonImp:Cast(Player) then
+                return true
+            elseif Setting("Pet") == 3 and not Spell.SummonVoidwalker:LastCast() and Spell.SummonVoidwalker:Cast(Player) then
+                return true
+            elseif Setting("Pet") == 4 and not Spell.SummonSuccubus:LastCast() and Spell.SummonSuccubus:Cast(Player) then
+                return true
+            elseif Setting("Pet") == 5 and not Spell.SummonFelhunter:LastCast() and Spell.SummonFelhunter:Cast(Player) then
+                return true
+            end
+        end
+        
         if not Player.Moving and Setting("Fear Bonus Mobs") and Spell.Fear:IsReady() and Debuff.Fear:Count() == 0 and (not Spell.Fear:LastCast() or (DMW.Player.LastCast[1].SuccessTime and (DMW.Time - DMW.Player.LastCast[1].SuccessTime) > 0.7)) then
             local CreatureType = Target.CreatureType
-            if Enemy20YC > 1 and not Player.InGroup and not (CreatureType == "Undead" or CreatureType == "Mechanical" or CreatureType == "Totem") and Target.TTD > 3 and not Target:IsBoss() and
+            if Enemy30YC > 1 and not Player.InGroup and not (CreatureType == "Undead" or CreatureType == "Mechanical" or CreatureType == "Totem") and Target.TTD > 3 and not Target:IsBoss() and
             (not Setting("Immolate") or not Spell.Immolate:Known() or Debuff.Immolate:Exist(Target) or Target.TTD < 10) and 
             (not Setting("Corruption") or not Spell.Corruption:Known() or Debuff.Corruption:Exist(Target) or Target.TTD < 7) and
             (not Setting("Siphon Life") or not Spell.SiphonLife:Known() or Debuff.SiphonLife:Exist(Target) or Target.TTD < 10) and 
             (not Curse or not Spell[Curse]:Known() or Debuff[Curse]:Exist(Target) or Target.TTD < 10 ) then                    
-                for i, Unit in ipairs(Enemy20Y) do
+                for i, Unit in ipairs(Enemy30Y) do
                     if i > 1 and Unit.TTD > 3 and Spell.Fear:Cast(Target) then
                         NewTarget = Unit
                         return true
@@ -288,9 +298,15 @@ local function PvE()
             end
         end
 
-        if UnitIsUnit(UnitTarget(Target.Pointer), 'player') and not Player.Moving and Setting("Use Fear") and Player.HP <= Setting("Fear HP") and Spell.Fear:IsReady() and Debuff.Fear:Count() == 0 and Spell.Fear:Cast(Target) then
+        
+        if UnitIsUnit(UnitTarget(Target.Pointer), 'player') and Setting("Use DeathCoil") and Player.HP <= Setting("Use DeathCoil HP") and Spell.DeathCoil:IsReady() and not Debuff.Fear:Exist(Target) and Spell.DeathCoil:Cast(Target) then
             return true
         end
+
+        if UnitIsUnit(UnitTarget(Target.Pointer), 'player') and not Player.Moving and Setting("Use Fear") and Player.HP <= Setting("Fear HP") and Spell.Fear:IsReady() and Debuff.Fear:Count() == 0 and not Debuff.DeathCoil:Exist(Target) and Spell.Fear:Cast(Target) then
+            return true
+        end
+
         if (not DMW.Player.Equipment[18] or (Target.Distance <= 1 and Setting("Auto Attack In Melee"))) and not IsCurrentSpell(Spell.Attack.SpellID) then
             StartAttack()
         end
@@ -318,9 +334,18 @@ local function PvE()
         if Setting("Searing Pain") and Target.Facing and not Player.Moving and (Setting("Shadow Bolt Mode") ~= 2 or Spell.ShadowBolt:CD() > 2 or Target.TTD < Spell.ShadowBolt:CastTime()) and Spell.SearingPain:Cast(Target) then
             return true
         end
-        if Setting("Drain Life Filler") and not Player.Moving and Player.HP <= Setting("Drain Life Filler HP") and Target.HP > 50 and Target.CreatureType ~= "Mechanical" and (Target.Player or Target.TTD > 3) and Spell.DrainLife:Cast(Target) then
+        if Setting("Drain Life Filler") and not Player.Moving and Player.HP <= Setting("Drain Life Filler HP") and not UnitIsUnit(UnitTarget(Target.Pointer), 'player') and Target.CreatureType ~= "Mechanical" and (Target.Player or Target.TTD > 3) and Spell.DrainLife:Cast(Target) then
             return true
         end
+        if Setting("Drain Soul Snipe") and Target.HP <= Setting("Drain Soul HP")  and (not Setting("Stop DS At Max Shards") or ShardCount < Setting("Max Shards")) and Spell.DrainSoul:CD() < 0.2 and Spell.DrainSoul:Cast(Target) then
+            return true
+        end
+       
+        local _, powerTypeString = UnitPowerType(Target.Pointer)
+        if Setting("Drain Mana Filler") and not Player.Moving and Player.Mana <= Setting("Drain Mana Filler Mana") and powerTypeString == "MANA" and Target:PowerPct() >= 40 and not UnitIsUnit(UnitTarget(Target.Pointer), 'player') and Spell.DrainMana:Cast(Target) then
+            return true
+        end
+
         if DMW.Player.Equipment[18] and Target.Facing then
             return Wand()
         end
