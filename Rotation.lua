@@ -224,7 +224,7 @@ local function PvE()
             PetAttackTime = DMW.Time
             PetAttack()
         end
-        if Setting("Pet Tanking") and Target:GetDistance(Pet) > 5 and not UnitIsUnit(UnitTarget(DMW.Player.Target.Pointer), 'player') then
+        if Setting("Pet Tanking") and Target:GetDistance(Pet) > 5 and not UnitIsUnit(UnitTarget(Target.Pointer), 'player') then
             return true
         end
     end
