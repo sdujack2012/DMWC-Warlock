@@ -113,6 +113,9 @@ local function DemonBuff()
 end
 
 local function CreateHealthstone()
+    if ShardCount == 0 then
+        return false
+    end
     if Spell.CreateHealthstoneMajor:Known() then
         if not Spell.CreateHealthstoneMajor:LastCast() and not Item.MajorHealthstone:InBag() and Spell.CreateHealthstoneMajor:Cast(Player) then
             return true
@@ -137,6 +140,12 @@ local function CreateHealthstone()
 end
 
 local function CreateSoulstone()
+    if ShardCount == 0 then
+        return false
+    end
+
+
+    
     if Spell.CreateSoulstoneMajor:Known() then
         if not Spell.CreateSoulstoneMajor:LastCast() and not Item.MajorSoulstone:InBag() and Spell.CreateSoulstoneMajor:Cast(Player) then
             return true
@@ -303,7 +312,7 @@ local function PvE()
             return true
         end
 
-        if UnitIsUnit(UnitTarget(Target.Pointer), 'player') and not Player.Moving and Setting("Use Fear") and Player.HP <= Setting("Fear HP") and Spell.Fear:IsReady() and Debuff.Fear:Count() == 0 and not Debuff.DeathCoil:Exist(Target) and Spell.Fear:Cast(Target) then
+        if UnitIsUnit(UnitTarget(Target.Pointer), 'player') and not Player.Moving and Setting("Use Fear") and Player.HP <= Setting("Fear HP") and Spell.Fear:IsReady() and Debuff.Fear:Count() == 0 and not Spell.Fear:LastCast() and not Debuff.DeathCoil:Exist(Target) and Spell.Fear:Cast(Target) then
             return true
         end
 
